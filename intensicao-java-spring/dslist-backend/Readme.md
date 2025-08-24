@@ -22,7 +22,7 @@
 
 ```sh
 git clone https://github.com/marcionavarro/devsuperior
-cd intensicao-java-spring
+cd intensicao-java-spring/dslist-backend
 ```
 
 ### 2. Subir o banco de dados com Docker
