@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -13,6 +14,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -44,6 +46,9 @@ import java.util.UUID;
 @Configuration
 @EnableWebSecurity
 public class AuthorizationServerConfig {
+
+    @Value("${app.security.issuer}")
+    private String issuer;
 
     // ---------------------------------------------------------
     // Filter chain 1: endpoints do Authorization Server
@@ -79,13 +84,17 @@ public class AuthorizationServerConfig {
     // Filter chain 2: demais rotas (tela de login)
     // ---------------------------------------------------------
     @Bean
-    @Order(2)
+    @Order(1)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/login", "/css/**", "/js/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(Customizer.withDefaults());
+            .formLogin(form -> form //Customizer.withDefaults()
+                .loginPage("/login")
+                .permitAll()
+            );
 
         return http.build();
     }
@@ -96,27 +105,32 @@ public class AuthorizationServerConfig {
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
 
-        RegisteredClient nextjsClient = RegisteredClient.withId(UUID.randomUUID().toString())
-            .clientId("nextjs-client")
+        RegisteredClient manualClient = RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("manual-client")
             // {noop} = sem encoding de senha, apenas para desenvolvimento
-            .clientSecret("{noop}nextjs-secret")
+            .clientSecret("{noop}my-client-secret")
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
             // URL de callback do Next.js (Auth.js)
-            .redirectUri("http://localhost:3000/api/auth/callback/spring")
+//            .redirectUri("http://localhost:3000/api/auth/callback/spring")
             // URL de callback para testes manuais (browser)
-            .redirectUri("http://localhost:9000/authorized")
-            .postLogoutRedirectUri("http://localhost:3000")
+//            .redirectUri("http://localhost:9000/authorized")
+//            .postLogoutRedirectUri("http://localhost:3000")
+            // URL de callback do Postman para testes manuais
+            .redirectUri("https://oauth.pstmn.io/v1/callback")
+            .postLogoutRedirectUri("http://localhost:3000/api/post-logout")
             // Scopes disponíveis para este cliente
             .scope(OidcScopes.OPENID)       // obrigatório para OIDC / ID token
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
             .clientSettings(ClientSettings.builder()
                                 .requireAuthorizationConsent(false)
                                 .build())
             .build();
 
-        return new InMemoryRegisteredClientRepository(nextjsClient);
+        return new InMemoryRegisteredClientRepository(manualClient);
     }
 
     // ---------------------------------------------------------
@@ -187,7 +201,7 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-            .issuer("http://localhost:9000")
+            .issuer(issuer)
             .build();
     }
 }
