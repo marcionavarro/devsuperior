@@ -14,25 +14,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -70,7 +57,7 @@ public class AuthorizationServerConfig {
             .authorizeHttpRequests(authorize -> authorize
                 .anyRequest().authenticated()
             )
-            // Redireciona para /login quando o browser acessa um endpoint protegido
+            // Redireciona para /login quando o navegador acessa um endpoint protegido
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
                     new LoginUrlAuthenticationEntryPoint("/login"),
@@ -104,7 +91,7 @@ public class AuthorizationServerConfig {
                 .ignoringRequestMatchers(h2Console)
             )
             .headers(headers -> headers
-                .frameOptions(frame -> frame.sameOrigin())
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
             )
             .formLogin(form -> form
                 .loginPage("/login")
@@ -113,62 +100,6 @@ public class AuthorizationServerConfig {
 
         return http.build();
     }
-
-    // ---------------------------------------------------------
-    // Clientes OAuth2 registrados (in-memory por enquanto)
-    // ---------------------------------------------------------
-    @Bean
-    public RegisteredClientRepository registeredClientRepository() {
-
-        RegisteredClient manualClient = RegisteredClient.withId(UUID.randomUUID().toString())
-            .clientId("manual-client")
-            // {noop} = sem encoding de senha, apenas para desenvolvimento
-            .clientSecret("{noop}my-client-secret")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            // URL de callback do Next.js (Auth.js)
-//            .redirectUri("http://localhost:3000/api/auth/callback/spring")
-            // URL de callback para testes manuais (browser)
-//            .redirectUri("http://localhost:9000/authorized")
-//            .postLogoutRedirectUri("http://localhost:3000")
-            // URL de callback do Postman para testes manuais
-            .redirectUri("https://oauth.pstmn.io/v1/callback")
-            .postLogoutRedirectUri("http://localhost:3000/api/post-logout")
-            // Scopes disponíveis para este cliente
-            .scope(OidcScopes.OPENID)       // obrigatório para OIDC / ID token
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(ClientSettings.builder()
-                                .requireAuthorizationConsent(false)
-                                .build())
-            .build();
-
-        return new InMemoryRegisteredClientRepository(manualClient);
-    }
-
-    // ---------------------------------------------------------
-    // Usuários in-memory (serão migrados para banco no commit 3)
-    // ---------------------------------------------------------
-    /*@Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-
-        UserDetails lita = User.builder()
-            .username("lita@email.com")
-            .password(passwordEncoder.encode("admin123"))
-            .authorities(List.of())
-            .build();
-
-        UserDetails marcio = User.builder()
-            .username("marcio@email.com")
-            .password(passwordEncoder.encode("admin123"))
-            .authorities(List.of())
-            .build();
-
-
-        return new InMemoryUserDetailsManager(lita, marcio);
-    }*/
 
     @Bean
     public PasswordEncoder passwordEncoder() {
