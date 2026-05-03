@@ -139,7 +139,7 @@ body {
   height: 20px;
 }
 
-.login-input-toggle.is-hidden {
+.login-input-toggle .is-hidden {
   display: none;
 }
 

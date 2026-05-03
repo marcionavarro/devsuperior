@@ -1,6 +1,6 @@
-(function setupTogglePassword(inputId, toggleId) {
-   const input = document.getElementById(inputId);
-   const toggle = document.getElementById(toggleId);
+(function () {
+   const input = document.getElementById('password');
+   const toggle = document.getElementById('togglePassword');
    if (!input || !toggle) return;
 
    const eyeOn = toggle.querySelector('.icon-eye');
@@ -8,11 +8,10 @@
 
    toggle.addEventListener('click', function () {
      const wasHidden = input.type === 'password';
-
      input.type = wasHidden ? 'text' : 'password';
 
-     if (eyeOn) eyeOn.classList.toggle('is-hidden', wasHidden);
-     if (eyeOff) eyeOff.classList.toggle('is-hidden', !wasHidden);
+     eyeOn.classList.toggle('is-hidden', wasHidden);
+     eyeOff.classList.toggle('is-hidden', !wasHidden);
 
      toggle.setAttribute('aria-pressed', String(wasHidden));
      toggle.setAttribute(

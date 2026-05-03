@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -34,13 +35,13 @@ import org.springframework.security.oauth2.server.authorization.settings.ClientS
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.List;
 import java.util.UUID;
 
 @Configuration
@@ -84,14 +85,28 @@ public class AuthorizationServerConfig {
     // Filter chain 2: demais rotas (tela de login)
     // ---------------------------------------------------------
     @Bean
-    @Order(1)
+    @Order(2)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+
+        // H2 console é um servlet separado (fora do DispatcherServlet), então o,
+        // requestMatchers(String) padrão não casa. Usar PathPatternRequestMatcher.
+        PathPatternRequestMatcher h2Console = PathPatternRequestMatcher.pathPattern("/h2-console/**");
+
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/login", "/css/**", "/js/**").permitAll()
+                .requestMatchers(h2Console).permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(form -> form //Customizer.withDefaults()
+            // H2 console envia POST sem CSRF token e usa <iframe>: precisa ignorar o CSRF
+            // e permitir frames de mesma origem nessas rotas.
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers(h2Console)
+            )
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+            )
+            .formLogin(form -> form
                 .loginPage("/login")
                 .permitAll()
             );
@@ -136,24 +151,24 @@ public class AuthorizationServerConfig {
     // ---------------------------------------------------------
     // Usuários in-memory (serão migrados para banco no commit 3)
     // ---------------------------------------------------------
-    @Bean
+    /*@Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
 
         UserDetails lita = User.builder()
-            .username("lita@example.com")
+            .username("lita@email.com")
             .password(passwordEncoder.encode("admin123"))
             .authorities(List.of())
             .build();
 
         UserDetails marcio = User.builder()
-            .username("marcio@example.com")
+            .username("marcio@email.com")
             .password(passwordEncoder.encode("admin123"))
             .authorities(List.of())
             .build();
 
 
         return new InMemoryUserDetailsManager(lita, marcio);
-    }
+    }*/
 
     @Bean
     public PasswordEncoder passwordEncoder() {

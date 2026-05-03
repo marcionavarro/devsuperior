@@ -8,7 +8,6 @@ public class LoginController {
 
     @GetMapping("/login")
     public String login() {
-        System.out.println("CHEGOU NO LOGIN");
         return "login";
     }
 }
