@@ -1,10 +1,12 @@
 package com.marcionavarro.authserver.config;
 
+import com.marcionavarro.authserver.services.oauth2.CustomOidcUserInfoMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +40,9 @@ public class AuthorizationServerConfig {
     @Value("${app.security.issuer}")
     private String issuer;
 
+    @Autowired
+    private CustomOidcUserInfoMapper userInfoMapper;
+
     // ---------------------------------------------------------
     // Filter chain 1: endpoints do Authorization Server
     // (ex: /oauth2/authorize, /oauth2/token, /userinfo, etc.)
@@ -51,8 +56,14 @@ public class AuthorizationServerConfig {
         http
             .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
             .with(authorizationServerConfigurer, as -> as
-                // Habilita suporte a OpenID Connect (ID token, /userinfo, discovery)
-                .oidc(Customizer.withDefaults())
+                // Habilita OpenID Connect (ID token, /userinfo, discovery) e instala
+                // o mapper customizado de /userinfo, que devolve email/name/picture
+                // conforme os scopes aprovados (sem despejar essas claims no ID token)
+                .oidc(oidc -> oidc
+                    .userInfoEndpoint(userInfo -> userInfo
+                        .userInfoMapper(userInfoMapper)
+                    )
+                )
             )
             .authorizeHttpRequests(authorize -> authorize
                 .anyRequest().authenticated()
@@ -95,6 +106,7 @@ public class AuthorizationServerConfig {
             )
             .formLogin(form -> form
                 .loginPage("/login")
+                .usernameParameter("email")
                 .permitAll()
             );
 
